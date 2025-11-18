@@ -1,6 +1,40 @@
-[build-system]
-requires = ["setuptools >= 46.4.0", "wheel"]
-build-backend = "setuptools.build_meta"
+[project]
+name = "pds.registry.stac"
+version = "0.1.0"
+description = "A short description, about 100-120 characters, suitable for search summaries"
+authors = [{name = "PDS", email = "pds_operator@jpl.nasa.gov"}]
+license = {text = "apache-2.0"}
+keywords = ["pds", "planetary data", "various", "other", "keywords"]
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent"
+]
+requires-python = ">=3.13"
+dependencies = [
+    "stac-fastapi.types~=6.0.0",
+    "stac-fastapi.api~=6.0.0",
+    "stac-fastapi.extensions~=6.0.0",
+    "stac-fastapi-opensearch~=6.7.1"
+    ]
 
-[tool.black]
-line-length = 120
+[project.urls]
+Homepage = "https://github.com/NASA-PDS/registry-stac-api"
+Download = "https://github.com/NASA-PDS/registry-stac-api/releases/"
+
+
+
+[project.optional-dependencies]
+dev = [
+    "hatch",
+    "wheel",
+    "build",
+    "uvicorn",
+    "stac-validator"
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
