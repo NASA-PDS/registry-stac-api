@@ -1,4 +1,5 @@
 from stac_pydantic.version import STAC_VERSION
+from stac_fastapi.types import stac as stac_types
 
 # TODO review the design as the object approach does not make a lot of sense here
 
@@ -11,8 +12,8 @@ class STACObject:
         self.stac_vervion = STAC_VERSION
         self.licence = "CC0-1.0"
         self.id = source.get("lidvid")
-        self.title = source.get("pds:Identification_Area/pds:title")
-        self.description = source.get("pds:Identification_Area/pds:description")
+        self.title = source.get("pds:Identification_Area/pds:title", None)[0]
+        self.description = source.get("pds:Citation_Information/pds:description", [None])[0]
         keywords = []
         keywords.extend(source.get("pds:Observing_System/pds:name", []))
         keywords.extend(source.get("pds:Target_Identification/pds:name", []))
@@ -37,10 +38,10 @@ class STACObject:
             self.providers = providers
 
         if "pds:Time_Coordinates/pds:start_date_time" in source or "pds:Time_Coordinates/pds:stop_date_time" in source:
-            self.temporal_interval = [[
+            self.temporal_interval = [
                 source.get("pds:Time_Coordinates/pds:start_date_time", [None])[0],
                 source.get("pds:Time_Coordinates/pds:stop_date_time", [None])[0]
-            ]]
+            ]
 
     def to_stac(self):
         return dict(
@@ -60,16 +61,22 @@ class Collection(STACObject):
     def to_stac(self):
         collection = super().to_stac()
         collection["type"] = "Collection"
-        collection["title"] = self.title
-        collection["description"] = self.description
-        collection["keywords"] = self.keywords
+        if self.title:
+            collection["title"] = self.title
+
+        if self.description:
+            collection["description"] = self.description
+
+        if self.keywords:
+            collection["keywords"] = self.keywords
+
         collection["providers"] = self.providers
         collection["extent"] = {
             "spatial": {
-                "bbox": [self.bbox]
+                "bbox": self.bbox
             },
             "temporal": {
-                "interval": self.temporal_interval
+                "interval": [self.temporal_interval]
             }
         }
         return collection
@@ -82,9 +89,19 @@ class Item(STACObject):
     def __init__(self, source: dict, ancillary: dict = None):
         super().__init__(source)
         self.type = "Collection"
-        self.collection = source.get("ops:Provenance/ops:parent_collection_identifier")
+        self.collection = source.get("ops:Provenance/ops:parent_collection_identifier", [None])[0]
 
         self.geometry = source.get("bbox_polygon", None)
+
+        self.bbox = None
+        polygon = self.geometry["coordinates"][0] if self.geometry else None
+        if polygon:
+            self.bbox = [
+                polygon[0][0],
+                polygon[1][0],
+                polygon[0][1],
+                polygon[2][1],
+            ]
 
         if "ops:Data_File_Info/ops:file_ref" in source:
             assets = {}
@@ -100,20 +117,41 @@ class Item(STACObject):
 
 
     def to_stac(self):
-        result = super().to_stac()
-        result["type"] = "Feature"
-        result["collection"] = self.collection
+        item = super().to_stac()
+        item["type"] = "Feature"
+        item["collection"] = self.collection
 
-        if self.geometry:
-            result["geometry"] = self.geometry
+        item["geometry"] = self.geometry
 
-        result["assets"] = self.assets
-        result["properties"] = dict(
-            title=self.title,
-            description=self.description,
-            keywords=self.keywords,
-            providers=self.providers,
-            temporal_interval=self.temporal_interval,
-        )
+        item["bbox"] = self.bbox
 
-        return result
+        item["assets"] = self.assets
+
+
+        if self.title:
+            item["title"] = self.title
+
+        if self.description:
+            item["description"] = self.description
+
+        if self.keywords:
+            item["keywords"] = self.keywords
+
+        if self.providers:
+            item["providers"] = self.providers
+
+        properties = {}
+        if self.temporal_interval:
+            if self.temporal_interval[0]:
+                properties["start_datetime"] = self.temporal_interval[0]
+                properties["datetime"] = self.temporal_interval[0]
+
+            if self.temporal_interval[1]:
+                properties["end_datetime"] = self.temporal_interval[1]
+                if not "datetime" in properties:
+                    properties["datetime"] = self.temporal_interval[1]
+
+        if properties:
+            item["properties"] = properties
+
+        return item

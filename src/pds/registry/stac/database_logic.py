@@ -105,7 +105,7 @@ class PDSDatabaseLogic(DatabaseLogic):
         ).metric(
            "min_south_bound",
            "min",
-           field="cart:Bounding_Coordinates/cart:west_bounding_coordinate"
+           field="cart:Bounding_Coordinates/cart:south_bounding_coordinate"
         )
 
         search = search.using(self.sync_client)
